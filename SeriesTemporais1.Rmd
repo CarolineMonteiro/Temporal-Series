@@ -1,0 +1,260 @@
+---
+title: "Lista 2"
+author: "Caroline Hernandes Monteiro"
+date: "25/09/2020"
+output: pdf_document
+---
+
+Estimador suavizado de $$T_t$$, utilizando médias móveis de quatro termos, usando a função ma() com order = 4.
+
+```{r}
+library(dplyr)
+library(forecast)
+
+obsTabela1 <- c(84.6, 89.9, 81.9, 95.4, 91.2, 89.8, 89.7, 97.9, 103.4, 107.6, 120.4, 109.6, 110.3, 118.1, 116.5, 134.2, 134.7, 144.8, 144.4, 159.2, 168.2, 175.2, 174.5, 173.7)
+t <- c(1:24)
+tabela1 <- rbind(data.frame(t, obsTabela1))
+
+mm1 <- ma(tabela1$obsTabela1, order = 4, centre = TRUE)
+```
+
+
+Usando a função diff() para diferenciar a série e torná-la estacionária:
+
+```{r}
+tabela1Dif <- diff(tabela1$obsTabela1, lag = 1, differences = 1)
+plotTabela1Dif <- ts(tabela1Dif, start = c(1,1))
+plot(plotTabela1Dif, main = "Consumo de Energia Elétrica Diferenciada Uma Vez", xlab = "Tempo", ylab = "Energia")
+
+tabela1Dif2 <- diff(tabela1$obsTabela1, lag = 1, differences = 2)
+plotTabela1Dif2 <- ts(tabela1Dif2, start = c(1,1))
+plot(plotTabela1Dif2, main = "Consumo de Energia Elétrica Diferenciada Duas Vezes", xlab = "Tempo", ylab = "Energia")
+
+plotTabela1 <- ts(tabela1$obsTabela1, start = c(1,1))
+plot(plotTabela1, main = "Consumo de Energia Elétrica", xlab = "Tempo", ylab = "Energia")
+```
+
+
+
+```{r}
+mes <- c(rep(c(1:12), 7))
+ano <- c(rep(1968,12),  rep(1969,12), rep(1970,12), rep(1971,12), rep(1972,12), rep(1973,12), rep(1974,12))
+obsTabela2 <- c(133.8, 124.9, 122.8, 135.8, 164.8, 168.5, 168.4, 187.3, 156.1, 164.2, 170.4, 164.3, 153.4, 140.6, 142.7, 157.9, 169.9, 165.5, 163.5, 200.4, 173.8, 168.0, 156.4, 201.1, 172.0, 132.0, 177.0, 164.0, 171.0, 195.0, 200.0, 214.0, 226.0, 259.0, 306.0, 291.0, 239.4, 230.7, 277.4, 251.4, 260.2, 282.3, 278.0, 291.4, 288.0, 297.0, 252.9, 296.8, 258.6, 292.4, 332.2, 312.1, 361.6, 385.0, 338.6, 404.0, 347.0, 397.9, 400.4, 400.5, 370.7, 390.3, 405.3, 418.2, 479.2, 436.9, 534.1, 588.7, 520.1, 696.7, 626.4, 725.6, 773.5, 827.6, 923.2, 907.4, 1212.5, 988.2, 1191.3, 1228.0, 1102.0, 1223.0, 1136.1, 1128.5)
+t <- c(1:84)
+tabela2 <- rbind(data.frame(t, ano, mes, obsTabela2))
+tabela2 <- as.data.frame(tabela2)
+```
+
+
+Gráfico das observações:
+
+```{r}
+plotTabela2 <- ts(tabela2$obsTabela2, start = c(1968,1), frequency = 12)
+plot(plotTabela2, main = "Importações Feitas pelo Brasil", xlab = "Tempo", ylab = "milhões de dólares")
+```
+
+
+Estimando a tendência por meio de um polinômio de segunda ordem.
+
+```{r}
+tend2 <- lm(obsTabela2 ~ t + I(t^2))
+```
+
+
+Estimando a tendência da série por meio de uma média móvel de 12 elementos.
+
+```{r}
+mm2 <- ma(tabela2$obsTabela2, order = 12)
+```
+
+
+
+Estimando a tendência da série anual de Produto Interno do Brasil (Série PIB) utilizando um método apropriado.
+
+```{r}
+library(readxl)
+
+pib <- read_xlsx("PIBANUAL.xlsx")
+plotPib <- ts(pib$pib1949, start = c(1861,1), frequency = 1)
+plot(plotPib, main = "Produto Interno do Brasil", xlab = "Tempo", ylab = "PIB")
+mm4_2 <- ma(pib$pib1949, order = 2)
+plotPib4_2 <- ts(mm4_2, start = c(1861,1), frequency = 1)
+plot(plotPib4_2, main = "Produto Interno do Brasil - 2", xlab = "Tempo", ylab = "PIB")
+mm4_3 <- ma(pib$pib1949, order = 3)
+plotPib4_3 <- ts(mm4_3, start = c(1861,1), frequency = 1)
+plot(plotPib4_3, main = "Produto Interno do Brasil - 3", xlab = "Tempo", ylab = "PIB")
+mm4_4 <- ma(pib$pib1949, order = 4)
+plotPib4_4 <- ts(mm4_4, start = c(1861,1), frequency = 1)
+plot(plotPib4_4, main = "Produto Interno do Brasil - 4", xlab = "Tempo", ylab = "PIB")
+mm4 <- ma(pib$pib1949, order = 5)
+pib$mm <- mm4
+plotPibMM <- ts(pib$mm, start = c(1861,1), frequency = 1)
+plot(plotPibMM, main = "Produto Interno do Brasil (médias móveis)", xlab = "Tempo", ylab = "PIB")
+```
+
+Como queremos estimar a tendência da série, vamos utilizar médias móveis.  
+Fazendo uma análise inicial nos dados e no gráfico da série, vemos que a série possui 126 observações e apresenta tendência crescente a partir de 1940. Observando o comportamento da série, vemos que até 1940 as observações se comportam mais ou menos da mesma forma e depois disso o PIB cresce exponencialmente. Testando médias móveis com 2 termos em diante, nota-se que a série apresenta uma boa suavização para 5 termos. 
+Como utilizando o método de médias móveis perdemos algumas observações, o método escolhido para estimar a tendência da série Produto Interno do Brasil foi médias móveis de 5 termos, pois quanto mais termos, maior a perda e esta escolha se mostrou suficiente para suavizar a série.  
+
+
+
+
+Baseado em uma inspeção visual da série "Temperatura-Ubatuba", sugira um modelo para $$Z_t$$.
+
+```{r}
+temperatura <- read_xls("temperatura.xls")
+plotTemperatura <- ts(temperatura$Ubatuba, start = c(1976,1), frequency = 12)
+plot(plotTemperatura, main = "Temperatura Ubatuba", xlab = "Tempo", ylab = "Temperatura")
+```
+
+Tendo em vista que a série Temperatura-Ubatuba consiste na observação da temperatura média de cada mês durante 9 anos, podemos pensar em um modelo de regressão com $$\mu = \beta_0$$, já que a série apresenta sazonalidade mas não apresenta tendência, da forma:
+
+$$Z_t = \mu + \sum_{j=1}^{12}\alpha_jD_{jt} + a_t$$
+
+Estimando as componentes que foram postuladas no modelo.
+
+```{r}
+summary(temperatura$Ubatuba)
+
+temperatura$t <- c(1:120)
+
+tam1 <- 120
+np1 <- tam1/12
+
+c.1 <- rep(c(1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), np1)
+c.2 <- rep(c(0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), np1)
+c.3 <- rep(c(0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0), np1)
+c.4 <- rep(c(0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0), np1)
+c.5 <- rep(c(0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0), np1)
+c.6 <- rep(c(0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0), np1)
+c.7 <- rep(c(0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0), np1)
+c.8 <- rep(c(0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0), np1)
+c.9 <- rep(c(0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0), np1)
+c.10 <- rep(c(0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0), np1)
+c.11 <- rep(c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0), np1)
+c.12 <- rep(c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1), np1)
+
+c1 <- c.1 - c.12
+c2 <- c.2 - c.12
+c3 <- c.3 - c.12
+c4 <- c.4 - c.12
+c5 <- c.5 - c.12
+c6 <- c.6 - c.12
+c7 <- c.7 - c.12
+c8 <- c.8 - c.12
+c9 <- c.9 - c.12
+c10 <- c.10 - c.12
+c11 <- c.11 - c.12
+
+mod1 <- lm(temperatura$Ubatuba ~ c1 + c2 + c3 + c4 + c5 + c6 + c7 + c8 + c9 + c10 + c11) 
+```
+
+$$\hat{\mu} = 22.3842, \ \hat{\alpha_1} = 3.1658, \ \hat{\alpha_2} = 3.7858, \ \hat{\alpha_3} = 2.5958, \ \hat{\alpha_4} = 0.1658, \ \hat{\alpha_5} = -1.1742, \\ \hat{\alpha_6} = -2.7742, \ \hat{\alpha_7} = -2.8442, \ \hat{\alpha_8} = -2.4742, \ \hat{\alpha_9} = -2.3142, \ \hat{\alpha_{10}} = -0.7442, \ \hat{\alpha_{11}} = 0.7658, \ \hat{\alpha_{12}} = 1.8462$$
+
+onde $$\hat{\alpha_{12}} = - \hat{\alpha_1} - \hat{\alpha_2} - \hat{\alpha_3} - \hat{\alpha_4} - \hat{\alpha_5} - \hat{\alpha_6} - \hat{\alpha_7} - \hat{\alpha_8} - \hat{\alpha_9} - \hat{\alpha_{10}} - \hat{\alpha_{11}}$$
+$$\hat{\alpha_{12}}$$ = - 3.1658 - 3.7858 - 2.5958 - 0.1658 - (-1.1742) - (-2.7742) - (-2.8442) - (-2.4742) - (-2.3142) - (-0.7442) - 0.7658
+$$\hat{\alpha_{12}}$$ = 1.8462
+
+Testando a existência dessas componentes.
+
+```{r}
+summary(mod1)
+```
+
+Usando a função summary() no modelo obtido, observamos que os p-valores das componentes é menor que 0.05 (significativas à um nível de 95%), com exceção de $$\hat{\alpha_{10}}$$ e $$\hat{\alpha_{11}}$$, menores do que 0.10 (significativas à um nível de 90\%) e $$\hat{\alpha_4}$$ que não é significativa.
+
+
+
+Para os dados a seguir, obtenha estimativas de T$_t$ e S$_t$ usando o modelo
+
+$$Z_t = \beta_0 +\beta_1t + \sum_{j=1}^{4}\alpha_jd_{jt} + a_t$$
+
+Previsões para os quatro trimestres de 1966:
+
+```{r}
+library(randtests)
+
+obsTabela3 <- c(3, 2, 4, 6, 3, 5, 4, 7, 6, 3, 5, 8, 4, 9, 10, 8)
+ano3 <- c(rep(1962, 4), rep(1963, 4), rep(1964, 4), rep(1965, 4))
+trimestre <- c(rep(c(1:4), 4))
+t <- (1:16)
+tabela3 <- rbind(data.frame(ano3, trimestre, obsTabela3, t))
+
+tam2 <- 16
+np2 <- tam2/4
+
+d.1 <- rep(c(1, 0, 0, 0), np2)
+d.2 <- rep(c(0, 1, 0, 0), np2)
+d.3 <- rep(c(0, 0, 1, 0), np2)
+d.4 <- rep(c(0, 0, 0, 1), np2)
+
+d1 <- d.1 - d.4
+d2 <- d.2 - d.4
+d3 <- d.3 - d.4
+
+mod2 <- lm(obsTabela3 ~ t + d1 + d2 + d3)
+ 
+Z1 <- 2.7281 + 0.3187 * (17) - 0.9594
+Z2 <- 2.7281 + 0.3187 * (18) - 0.5281
+Z3 <- 2.7281 + 0.3187 * (19) + 0.1531
+Z4 <- 2.7281 + 0.3187 * (20) + 0.9594 + 0.5281 - 0.1531
+```
+
+
+
+
+Considere a série de Consumo de Gasolina a seguir: 
+
+Sugegrindo um modelo apropriado para $$Z_t$$ baseado em uma inspeção visual da série. 
+
+```{r}
+ano4 <- c(rep(1960, 4), rep(1961, 4), rep(1962, 4), rep(1963, 4), rep(1964, 4), rep(1965, 4), rep(1966, 4), rep(1967, 4), rep(1968, 4), rep(1969, 4), rep(1970, 4), rep(1971, 4), rep(1972, 4), rep(1973, 4))
+trimestre <- rep(c(1:4), 14)
+obsTabela4 <- c(1335, 1443, 1529, 1447, 1363, 1501, 1576, 1495, 1464, 1450, 1611, 1612, 1516, 1660, 1738, 1652, 1639, 1754, 1839, 1736, 1699, 1812, 1901, 1821, 1763, 1937, 2001, 1894, 1829, 1966, 2068, 1983, 1939, 2099, 2201, 2081, 2008, 2232, 2299, 2204, 2152, 2313, 2393, 2278, 2191, 2402, 2450, 2387, 2391, 2549, 2602, 2529, 2454, 2647, 2689, 2549)
+t <- (1:56)
+
+#obsTabela4.2 <- c(1335, 1363, 1464, 1516, 1639, 1699, 1763, 1829, 1939, 2008, 2152, 2191, 2391, 2454, 1443, 1501, 1450, 1660, 1754, 1812, 1937, 1966, 2099, 2232, 2313, 2402, 2549, 2647, 1529, 1576, 1611, 1738, 1839, 1901, 2001, 2068, 2201, 2299, 2393, 2450, 2602, 2689, 1447, 1495, 1612, 1652, 1736, 1821, 1894, 1983, 2081, 2204, 2278, 2387, 2529, 2549)
+
+
+tabela4 <- rbind(data.frame(ano4, trimestre, obsTabela4, t)) 
+plotGasolina <- ts(tabela4$obsTabela4, start = c(1960,1), frequency = 4)
+plot(plotGasolina, main = "Consumo trimestral de gasolina na Califórnia", xlab = "Tempo", ylab = "milhões de galões")
+```
+
+A partir do gráfico da série é possível observar que o comportamento durante os anos segue um padrão, apresentando sazonalidade. Também podemos verificar que a série apresenta tendência (aparenta ser linear) crescente. Levando isso em consideração, vamos considerar o modelo com tendência linear da forma:
+
+$$Z_t = \beta_0 + \beta_1t + \sum_{j=1}^{4}\alpha_jD_{jt} + a_t$$,
+
+sendo n = 4 pois os dados apresentam 4 trimestres por ano.
+
+Estimando as componentes que foram postuladas no modelo. 
+
+```{r}
+tam3 <- 56
+np3 <- tam3/4
+
+e.1 <- rep(c(1, 0, 0, 0), np3)
+e.2 <- rep(c(0, 1, 0, 0), np3)
+e.3 <- rep(c(0, 0, 1, 0), np3)
+e.4 <- rep(c(0, 0, 0, 1), np3)
+
+e1 <- e.1 - e.4
+e2 <- e.2 - e.4
+e3 <- e.3 - e.4
+
+mod3 <- lm(obsTabela4 ~ t + e1 + e2 + e3)
+```
+
+$$\hat{\beta_0} = 1319.19, \ \hat{\beta_1} = 22.68, \ \hat{\alpha_1} = -92.78, \ \hat{\alpha_2} = 28.97, \ \hat{\alpha_3} = 87.14, \ \hat{\alpha_4} = -23.33$$
+
+onde $$\hat{\alpha_4}$$ = - $$\hat{\alpha_1}$$ - $$\hat{\alpha_2}$$ - $$\hat{\alpha_3}$$ 
+$$\hat{\alpha_4}$$ = 92.78 - 28.97 - 87.14 
+$$\hat{\alpha_4}$$ = -23.33
+
+Testando a existência dessas componentes.
+
+```{r}
+summary(mod3)
+```
+
+Usando a função summary() no modelo obtido, observamos que os p-valores das componentes é menor que 0.05, ou seja, as componentes postuladas são significativas à um nível de significância de 95%.
