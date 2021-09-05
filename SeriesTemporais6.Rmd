@@ -1,0 +1,74 @@
+---
+title: "Séries Temporais 6"
+author: "Caroline Hernandes Monteiro"
+date: "25/10/2020"
+output: pdf_document
+---
+
+```{r}
+library(readxl)
+
+dadosCovid <- read_xlsx("dados-covid-prova1-mae325-2020.xlsx", sheet = 3)
+str(dadosCovid)
+head(dadosCovid)
+
+plotNovo <- ts(dadosCovid$casos_novos, start = 1, frequency = 1)
+plot(plotNovo, main = "Casos Novos de Covid", xlab = "Tempo (em dias)", ylab = "Casos Novos")
+```
+
+Olhando a Figura, observa-se que, apesar do último quadrante parecer ter atingido estacionariedade, analisando a série completa, não é possível afirmar que a mesma é estacionária, visto não estar em torno de uma média constante. Além disso, a série não apresenta tendência nem crescente nem decrescente.
+
+Desta forma, analisando todo o gráfico, e tendo em vista que a série não apresenta tendência e não parece ser estacionária, o método mais adequado para suavizar a série é o método de Suavização Exponencial Simples (SES).
+
+
+Calculando as previsões, com origem em 15/10/2020, para os dias 16, 17, 18, 19, 20 e 21.
+
+```{r}
+novosCasos <- as.ts(dadosCovid$casos_novos[1:234])
+ses <- HoltWinters(novosCasos, beta = FALSE, gamma = FALSE)
+seh <- HoltWinters(novosCasos, gamma = FALSE)
+```
+
+Onde alpha = 0.1575414.
+
+
+```{r}
+library(forecast)
+
+SemAtualizacao <- forecast(ses, 6)
+forecast(seh, 6)
+```
+
+
+Obtendo as previsões para o mesmo período, atualizando a cada nova observação.
+
+```{r}
+alfa <- 0.1575414
+Ztbarra <- c()
+Ztbarra[1] <- novosCasos[1]
+
+for (i in 2:234) {
+  Ztbarra[i] <- alfa * novosCasos[i] + (1 - alfa) * Ztbarra[i-1]
+}
+
+# previsão atualizada
+
+previsaoAtualizada <- c()
+previsaoAtualizada[1] <- Ztbarra[234]
+for (i in 2:8) {
+  previsaoAtualizada[i] <- alfa * (dadosCovid$casos_novos[234+i-1]) + (1 - alfa) * previsaoAtualizada[i-1]
+}
+previsaoAtualizada
+```
+
+
+Calculando o EQM de previsão.
+
+```{r}
+library(Metrics)
+
+dadosCovid$casos_novos[235:240]
+eqm1 <- mse(dadosCovid$casos_novos[235:240], SemAtualizacao$mean)
+previsaoAtualizada[-1]
+```
+
