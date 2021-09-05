@@ -1,0 +1,227 @@
+---
+title: "Séries Temporais 4"
+author: "Caroline Hernandes Monteiro"
+date: "23/11/2020"
+output: pdf_document
+---
+
+```{r}
+library(readxl)
+
+dados <- read_xls("ICV.xls")
+icv <- as.ts(dados$ICV[1:114])
+plotDados <- ts(icv, start = c(1970,1), frequency = 12)
+plot(plotDados, main = "ICV", xlab = "Tempo", ylab = "ICV")
+adf.test(icv, alternative = "stationary")
+pp.test(icv, alternative = "stationary")
+```
+
+A partir da Figura, nota-se uma tendência exponencial na série, então, para estabilizar a variância, aplica-se uma transformação do tipo ln.
+
+
+```{r}
+library(tseries)
+
+logDados <- log(icv)
+plotLogDados <- ts(logDados, start = c(1970,1), frequency = 12)
+plot(plotLogDados, main = "ln(ICV)", xlab = "Tempo", ylab = "ICV")
+adf.test(logDados, alternative = "stationary")
+pp.test(logDados, alternative = "stationary")
+par(mfrow = c(2,1))
+acf(logDados)
+pacf(logDados)
+acf(logDados, plot = FALSE)
+pacf(logDados, plot = FALSE)
+```
+
+A Figura apresenta a série após aplicar a transformação e aparenta possuir variabilidade constante. 
+
+Observando os valores da fac juntamente com o seu gráfico, nota-se que esta não decresce rapidamente para zero como deveria, o que sugere que a série precisa ser diferenciada.
+
+Diferenciando a série uma vez: 
+
+
+```{r}
+logICVdiff <- diff(logDados, differences = 1)
+adf.test(logICVdiff, alternative = "stationary")
+pp.test(logICVdiff, alternative = "stationary")
+randtests::runs.test(logICVdiff)
+par(mfrow = c(2,1))
+acf(logICVdiff)
+pacf(logICVdiff)
+acf(logICVdiff, plot = FALSE)
+pacf(logICVdiff, plot = FALSE)
+```
+
+
+Teste de raíz unitária da Dickey-Fuller:
+
+```{r}
+library(urca)
+
+dickey <- ur.df(icv, type = 'trend', lags = 1)
+summary(logICVdiff)
+var(logICVdiff)
+```
+
+Temos que $$\hat{\tau}_\mu = 6.8035 > -3,489$$, então não rejeitamos a hipótese de uma raíz unitária no operador auto-regressivo, ou seja, $$d \geq 1$$, ao nível de 1%.
+
+Analisando o comportamento da fac e da facp na Figura, nota-se que apenas o primeiro lag da facp ($$\phi_{11}$$) é estatisticamente diferente de zero. Assim, um modelo preliminar para ln(ICV) é um ARIMA(1,1,0).
+
+Para verificar se uma constante deve, ou não, ser adicionada ao modelo, observa-se que
+
+$$\bar{W} = 0,02111$$ e $$Var(\bar{W}) = \frac{c_0(1 + r_1)}{n(1 - r_1)} = \frac{0,00012(1 + 0,49)}{113(1 - 0,49)} = 3,10 x 10^{-6}$$
+
+então $$DP(\bar{W}) = 0,0018$$.
+
+A média da série (1-B)ln(ICV) é diferente de zero e uma constante deve ser incluída no modelo.
+
+Portanto, o modelo preliminar é um ARIMA(1,1,0) com uma constante
+
+$$(1 - B)(1 - \phi_1B)W_t = \theta_0 + a_t$$, 
+
+onde $$W_t = ln(ICV)$$.
+
+```{r}
+library(forecast)
+library(lmtest)
+
+mod1 <- Arima(logDados, c(1,1,0), include.constant = TRUE)
+coeftest(mod1)
+res1 <- residuals(mod1)
+plot.ts(res1)
+par(mfrow = c(2,1))
+acf(res1)
+pacf(res1)
+par(mfrow = c(1,1))
+qqnorm(res1)
+qqline(res1)
+Box.test(res1, lag = 1, type = "Box-Pierce", fitdf = 0)
+Box.test(res1, lag = 1, type = "Ljung-Box", fitdf = 0)
+Box.test(res1, lag = 15, type = "Box-Pierce", fitdf = 2)
+Box.test(res1, lag = 15, type = "Ljung-Box", fitdf = 2)
+```
+
+Observando a fac e a facp dos resíduos, não observa-se nenhum valor fora dos intervalos de confiança, nos trazendo evidências de que o modelo foi bem ajustado.
+
+
+
+Ajustando um modelo para a série de Poluição $$PM_{10}$$.
+
+
+```{r}
+poluicao <- read_xls("poluicao.xls")
+pm10 <- as.ts(poluicao$PM10)
+plotPM10 <- ts(pm10, start = 1, frequency = 1)
+plot(plotPM10, main = "Poluição PM10", xlab = "Tempo", ylab = "PM10")
+adf.test(pm10, alternative = "stationary")
+pp.test(pm10, alternative = "stationary")
+randtests::runs.test(pm10)
+logPM <- log(pm10)
+plotLogPM <- ts(logPM, start = 1, frequency = 1)
+plot(plotLogPM, main = "ln(PM10)", xlab = "Tempo", ylab = "PM10")
+adf.test(logPM, alternative = "stationary")
+pp.test(logPM, alternative = "stationary")
+dickey2 <- ur.df(pm10, type = 'trend', lags = 3)
+```
+
+
+```{r}
+par(mfrow = c(2,1))
+acf(pm10)
+pacf(pm10)
+par(mfrow = c(2,1))
+acf(logPM)
+pacf(logPM)
+acf(logPM, plot = FALSE)
+Pacf(logPM, plot = FALSE)
+frequency(pm10)
+dias <- c(1:365)
+teste1 <- data.frame(pm10, dias)
+kruskal.test(teste1, pm10~dias)
+```
+
+O comportamento da fac e da facp da série não indica, aparentemente, a necessidade de diferenças na série original para torná-la estacionária.
+
+
+```{r}
+logPMdiff <- diff(logPM, differences = 1)
+par(mfrow = c(2,1))
+acf(logPMdiff)
+pacf(logPMdiff)
+dickey2 <- ur.df(logPM, type = 'trend', lags = 3) 
+acf(logPM, plot = FALSE)
+pacf(logPM, plot = FALSE)
+summary(logPM)
+var(logPM)
+```
+
+Temos que $$\hat{\tau}_\mu = -9,3474 < -3,4507$$, então rejeitamos a hipótese da existência de uma raíz unitária.
+
+Analisando o comportamento da fac e da facp na Figura, nota-se que as três primeiras lags da facp são estatisticamente diferentes de zero. Assim, um modelo preliminar para ln(PM10) é um AR(3).
+
+Para verificar se uma constante deve, ou não, ser adicionada ao modelo, observa-se que
+
+$$\bar{Z} = 4.025$$ e $$Var(\bar{Z}) = \frac{c_0(1 + r_1)}{n(1 - r_1)} = \frac{0.1444015(1 + 0.703)}{365(1 - 0.703)} = 2,27 x 10^{-3}$$
+
+então $$DP(\bar{Z}) = 0,047629$$.
+
+Assim, a média da série ln(PM10) é diferente de zero e uma constante deve ser incluída no modelo.
+
+Portanto, o modelo preliminar é um AR(3) com uma constante
+
+$$Z_t = \phi_1Z_{t-1} + \phi_2Z_{t-2} + \phi_3Z_{t-3} + \theta_0 + a_t$$, 
+
+onde $$Z_t = ln(PM10)$$.
+
+
+```{r}
+mod2 <- Arima(logPM, c(3,0,0), include.constant = TRUE)
+coeftest(mod2)
+res2 <- residuals(mod2)
+plot.ts(res2)
+par(mfrow = c(2,1))
+acf(res2)
+pacf(res2)
+acf(res2, plot = FALSE)
+pacf(res2, plot = FALSE)
+par(mfrow = c(1,1))
+qqnorm(res2)
+qqline(res2)
+Box.test(res2, lag = 1, type = "Box-Pierce", fitdf = 0)
+Box.test(res2, lag = 1, type = "Ljung-Box", fitdf = 0)
+Box.test(res2, lag = 15, type = "Box-Pierce", fitdf = 3)
+Box.test(res2, lag = 25, type = "Ljung-Box", fitdf = 3)
+
+
+mod3 <- Arima(logPM, c(3,0,15), fixed = c(NA, NA, NA, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, NA, NA), include.constant = TRUE)
+coeftest(mod3)
+res3 <- residuals(mod3)
+plot.ts(res3)
+par(mfrow = c(2,1))
+acf(res3)
+pacf(res3)
+
+mod4 <- Arima(logPM, c(3,0,15), fixed = c(NA, NA, NA, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, NA, NA, NA), include.constant = TRUE)
+coeftest(mod4)
+res4 <- residuals(mod4)
+plot.ts(res4)
+par(mfrow = c(2,1))
+acf(res4)
+pacf(res4)
+
+mod5 <- Arima(logPM, c(3,0,15), fixed = c(NA, NA, NA, 0, 0, 0, 0, 0, 0, 0, 0, NA, 0, 0, 0, 0, NA, NA, NA), include.constant = TRUE)
+coeftest(mod5)
+res5 <- residuals(mod5)
+plot.ts(res5)
+par(mfrow = c(2,1))
+acf(res5)
+pacf(res5)
+
+Box.test(res2, lag = 1, type = "Box-Pierce", fitdf = 0)
+Box.test(res2, lag = 1, type = "Ljung-Box", fitdf = 0)
+Box.test(res2, lag = 15, type = "Box-Pierce", fitdf = 6)
+Box.test(res2, lag = 25, type = "Ljung-Box", fitdf = 6)
+```
+
+
