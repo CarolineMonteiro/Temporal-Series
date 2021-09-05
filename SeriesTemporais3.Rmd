@@ -1,0 +1,77 @@
+---
+title: "Séries Temporais 3"
+author: "Caroline Hernandes Monteiro"
+date: "07/11/2020"
+output: pdf_document
+---
+
+Utilizando uma rotina de computador para gerar 200 valores de cada um dos modelos abaixo considerando $$a_t \sim N(0, 1)$$.
+
+```{r}
+itemA <- arima.sim(list(order = c(1,0,0), ar = 0.6), n = 200, sd = 1)
+par(mfrow = c(1,1))
+plot.ts(itemA)
+par(mfrow = c(2,1))
+acf(itemA, lag.max = 40)
+pacf(itemA, lag.max = 40)
+
+itemB <- arima.sim(list(order = c(0,0,1), ma = 0.8), n = 200, sd = 1)
+par(mfrow = c(1,1))
+plot.ts(itemB)
+par(mfrow = c(2,1))
+acf(itemB, lag.max = 40)
+pacf(itemB, lag.max = 40)
+
+itemC <- arima.sim(list(order = c(2,0,0), ar = c(0.3, -0.6)), n = 200, sd = 1)
+par(mfrow = c(1,1))
+plot.ts(itemC)
+par(mfrow = c(2,1))
+acf(itemC, lag.max = 40)
+pacf(itemC, lag.max = 40)
+
+itemD <- arima.sim(list(order = c(1,0,2), ar = 0.4, ma = c(-0.3, 0.8)), n = 200, sd = 1)
+par(mfrow = c(1,1))
+plot.ts(itemD)
+par(mfrow = c(2,1))
+acf(itemD, lag.max = 40)
+pacf(itemD, lag.max = 40)
+```
+
+
+
+Calculando as autocorrelações e autocorrelações parciais estimadas para as séries Manchas e Temperatura - Ubatuba.
+
+```{r} 
+library(readxl)
+
+manchas <- read_xls("MANCHAS.xls") 
+par(mfrow = c(1,1))
+plot1 <- ts(manchas$manchas, start = c(1749,1), frequency = 1)
+plot(plot1, main = "Manchas", xlab = "Tempo", ylab = "")
+par(mfrow = c(2,1))
+facManchas <- acf(manchas$manchas, lag.max = 176)
+facpManchas <- pacf(manchas$manchas, lag.max = 176)
+
+summary(facManchas$acf)
+summary(facpManchas$acf)
+
+facManchas
+facpManchas
+
+temperatura <- read_xls("temperatura.xls")
+par(mfrow = c(1,1))
+plot2 <- ts(temperatura$Ubatuba, start = c(1976,1), frequency = 12)
+plot(plot2, main = "Temperatura Ubatuba", xlab = "Tempo", ylab = "Temperatura")
+par(mfrow = c(2,1))
+facTemperatura <- acf(temperatura$Ubatuba, lag.max = 120)
+facpTemperatura <- pacf(temperatura$Ubatuba, lag.max = 120)
+
+summary(facTemperatura$acf)
+summary(facpTemperatura$acf)
+
+facTemperatura
+facpTemperatura
+```
+
+
+
