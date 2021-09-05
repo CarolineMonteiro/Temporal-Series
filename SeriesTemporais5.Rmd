@@ -1,0 +1,341 @@
+---
+title: "Séries Temporais 5"
+author: "Caroline Hernandes Monteiro"
+date: "07/12/2020"
+output: pdf_document
+---
+
+Obtendo as autocorrelações estimadas para $$Z_t, \ \Delta Z_t, \ \Delta_4 Z_t, \ \Delta\Delta_4 Z_t, \ sendo \ Z_t$$ a série de consumo de gasolina.
+
+```{r}
+ano <- c(rep(1960,4), rep(1961,4), rep(1962,4), rep(1963,4), rep(1964,4), rep(1965,4), rep(1966,4), rep(1967,4), rep(1968,4), rep(1969,4), rep(1970,4), rep(1971,4), rep(1972,4), rep(1973,4))
+Zt <- c(1335, 1443, 1529, 1447, 1363, 1501, 1576, 1495, 1464, 1450, 1611, 1612, 1516, 1660, 1738, 1652, 1639, 1754, 1839, 1736, 1699, 1812, 1901, 1821, 1763, 1937, 2001, 1894, 1829, 1966, 2068, 1983, 1939, 2099, 2201, 2081, 2008, 2232, 2299, 2204, 2152, 2313, 2393, 2278, 2191, 2402, 2450, 2387, 2391, 2549, 2602, 2529, 2454, 2647, 2689, 2549)
+t1 <- c(1:56)
+tabela1 <- rbind(data.frame(t1, ano, Zt))
+```
+
+
+```{r}
+fac <- acf(tabela1$Zt, lag.max = 25)
+```
+
+A partir da Figura, pode-se notar um decaimento lento na função de autocorrelação, o que é um indicativo de que a série deve ser diferenciada.
+
+
+```{r}
+library(tseries)
+
+ZtDiff <- diff(tabela1$Zt, differences = 1)
+par(mfrow = c(2,1))
+facDiff <- acf(ZtDiff, lag.max = 25)
+facpDiff <- pacf(ZtDiff, lag.max = 25)
+adf.test(tabela1$Zt, alternative = "stationary")
+pp.test(tabela1$Zt, alternative = "stationary")
+adf.test(ZtDiff, alternative = "stationary")
+pp.test(ZtDiff, alternative = "stationary")
+```
+
+Pela Figura, nota-se que o comportamento da fac mudou, possuindo lags possitivos e negativos de maneira alterada. Também verifica-se que a fac apresenta um padrão de sazonalidade, pois seus lags sazonais possuem um decaimento lento, indicando que a série é não estacionária na parte sazonal.
+
+
+```{r}
+plotDados <- ts(tabela1$Zt, start = c(1960,1), frequency = 4)
+plot(plotDados, main = "Consumo Trimestral de Gasolina na Califórnia", xlab = "Tempo", ylab = "Consumo de Gasolina")
+ZtDiffSaz <- diff(tabela1$Zt, lag = 4, differences = 1)
+par(mfrow = c(2,1))
+facDiffSaz <- acf(ZtDiffSaz, lag.max = 25)
+facpDiffSaz <- pacf(ZtDiffSaz, lag.max = 25)
+adf.test(ZtDiffSaz, alternative = "stationary")
+pp.test(ZtDiffSaz, alternative = "stationary")
+ZtDiffDiffSaz <- diff(ZtDiffSaz, lag = 1, differences = 1)
+par(mfrow = c(2,1))
+facDiffDiff <- acf(ZtDiffDiffSaz, lag.max = 25)
+facpDiffDiff <- pacf(ZtDiffDiffSaz, lag.max = 25)
+adf.test(ZtDiffDiffSaz, alternative = "stationary")
+pp.test(ZtDiffDiffSaz, alternative = "stationary")
+ZtDiffDiff <- diff(ZtDiff, lag = 4, differences = 1)
+par(mfrow = c(2,1))
+facDiffDiff2 <- acf(ZtDiffDiff, lag.max = 25)
+facpDiffDiff2 <- pacf(ZtDiffDiff, lag.max = 25)
+adf.test(ZtDiffDiff, alternative = "stationary")
+pp.test(ZtDiffDiff, alternative = "stationary")
+```
+
+A partir do Teste de Dickey-Fuller Aumentado e do Teste da Raíz Unitária de Phillips-Perron usando as funções adf.test() e pp.test() respectivamente, foi encontrado que a série diferenciada uma vez, a série diferenciada sazonalmente e a série diferenciada e diferenciada sazonalmente (a série foi diferenciada sazonalmente e depois diferenciada normalmente e vice e versa e os resultados obtidos foram os mesmos) são estacionárias. Nesse caso, não existe necessidade de diferenciar e diferenciar sazonalmente a série, visto que com apenas uma dessas diferenciais a série se torna estacionária e perde-se informações da série cada vez que a série é diferenciada.
+
+Pelas Figuras, pode-se dizer que a série que parece ser estacionária é a série diferenciada e diferenciada sazonalmente apenas, visto que apresenta decaimento exponencial como comportamento, diferente da série diferenciada sazonalmente, que possui os primeiros lags estatisticamente iguais a zero e apenas o quarto lag fora do intervalo de confiança, não trazendo um comportamento parecido ao modelo AR(p), MA(q) ou ARMA(p,q).
+
+
+```{r}
+library(forecast)
+library(lmtest)
+library(sarima)
+library(urca)
+
+Zt1 <- ts(tabela1$Zt, frequency = 4, start = 1960)
+dickey <- ur.df(Zt1, type = 'trend', lags = 4)
+summary(dickey)
+summary(ZtDiff)
+var(ZtDiff)
+summary(ZtDiffSaz)
+var(ZtDiffSaz)
+summary(ZtDiffDiff)
+var(ZtDiffDiff)
+summary(ZtDiffDiffSaz)
+var(ZtDiffDiffSaz)
+mod <- auto.arima(Zt1)
+coeftest(mod)
+summary(mod)
+
+mod1 <- Arima(tabela1$Zt, order = c(0,1,0), seasonal = list(order = c(2,1,0), period = 4))
+coeftest(mod1)
+summary(mod1)
+
+mod2 <- Arima(tabela1$Zt, order = c(1,1,0), seasonal = list(order = c(1,1,0), period = 4), include.constant = TRUE)
+coeftest(mod2)
+summary(mod2)
+
+mod3 <- Arima(tabela1$Zt, order = c(2,1,0), seasonal = list(order = c(0,1,0), period = 4), include.constant = TRUE)
+coeftest(mod3)
+summary(mod3)
+
+mod4 <- Arima(tabela1$Zt, order = c(1,0,0), seasonal = list(order = c(2,1,0), period = 4), include.constant = TRUE)
+coeftest(mod4)
+summary(mod4)
+
+modtest <- Arima(Zt1, order = c(1,1,0), seasonal = list(order = c(1,1,0), period = 4), include.constant = TRUE)
+coeftest(modtest)
+summary(modtest)
+```
+
+
+```{r}
+library(forecast)
+
+res1 <- residuals(mod1)
+par(mfrow = c(2,1))
+acf(res1)
+pacf(res1)
+res <- residuals(mod)
+par(mfrow = c(2,1))
+acf(res)
+pacf(res)
+res4 <- residuals(mod4)
+par(mfrow = c(2,1))
+acf(res4)
+pacf(res4)
+
+Box.test(res, lag = 1, type = "Box-Pierce", fitdf = 0)
+Box.test(res, lag = 1, type = "Ljung-Box", fitdf = 0)
+Box.test(res, lag = 15, type = "Box-Pierce", fitdf = 2)
+Box.test(res, lag = 15, type = "Ljung-Box", fitdf = 2)
+
+previsaoGas <- forecast(mod, 4)
+```
+
+
+Série Temperatura-Cananéia
+
+```{r}
+library(readxl)
+
+temperatura <- read_xls("temperatura.xls")
+```
+
+
+```{r}
+library(urca)
+
+plotTemperatura <- ts(temperatura$Cananeia, start = c(1976,1), frequency = 12)
+plot(plotTemperatura, main = "Temperatura Cananeia", xlab = "Tempo", ylab = "Temperatura")
+
+adf.test(temperatura$Cananeia, alternative = "stationary")
+pp.test(temperatura$Cananeia, alternative = "stationary")
+dickey <- ur.df(temperatura$Cananeia, type = "trend")
+summary(dickey)
+```
+
+Pelo Teste Aumentado de Dickey-Fuller e pelo Teste da Raíz Unitária de Phillips-Perron, vemos que a série é estacionária. Usando a função ur.df() do pacote urca no R, é possível verificar que o valor da estatística é de -6.0828, ou seja, menor do que o valor tabelado. Dessa forma, a série não precisa ser diferenciada. 
+
+
+```{r}
+library(TSA)
+library(GeneCycle)
+
+TSA::periodogram(temperatura$Cananeia)
+par(mfrow = c(2,1))
+fac <- acf(temperatura$Cananeia, lag.max = 90)
+facp <- pacf(temperatura$Cananeia, lag.max = 90)
+fisher.g.test(temperatura$Cananeia)
+fisher.g.test(diff(temperatura$Cananeia, lag = 12))
+```
+
+Como o periodograma apresenta apenas um pico, a série apresenta sazonalidade.
+
+Pelos valores do periodograma, o maior pico encontra-se no lag 10, dessa forma, período = $$\frac{120}{10} = 12$$. Portanto, o período da série é igual a 12 e assim temos uma série anual, visto que os dados são mensais.
+
+Pelo teste g de Fisher, temos que o lag 12 apresenta um p-valor alto, suportando a conclusão de que o período é igual a 12.
+
+Além disso, pela FAC é possível ver que a série possui picos em lags múltiplos de 12 que apresentam decaimento com o passar do tempo. 
+
+
+```{r}
+summary(temperatura$Cananeia)
+cananeia <- ts(temperatura$Cananeia, frequency = 12, start = 1)
+mod1 <- auto.arima(cananeia)
+coeftest(mod1)
+summary(mod1)
+res1 <- residuals(mod1)
+par(mfrow = c(2,1))
+acf(res1)
+pacf(res1)
+
+mod2 <- Arima(temperatura$Cananeia, order = c(1,0,0), seasonal = list(order = c(2,1,0), period = 12), include.constant = TRUE)
+coeftest(mod2)
+
+Box.test(res1, lag = 1, type = "Box-Pierce", fitdf = 0)
+Box.test(res1, lag = 1, type = "Ljung-Box", fitdf = 0)
+Box.test(res1, lag = 2, type = "Box-Pierce", fitdf = 0)
+Box.test(res1, lag = 2, type = "Ljung-Box", fitdf = 0)
+Box.test(res1, lag = 3, type = "Box-Pierce", fitdf = 0)
+Box.test(res1, lag = 3, type = "Ljung-Box", fitdf = 0)
+Box.test(res1, lag = 15, type = "Box-Pierce", fitdf = 3)
+Box.test(res1, lag = 15, type = "Ljung-Box", fitdf = 3)
+```
+
+Usando a função auto.arima(), o modelo ajustado foi um $$SARIMA(1,0,0)(2,1,0)_{12}$$ sem constante. 
+
+$$(1 - \phi B - \Phi_1B^{12} - \Phi_2B^{24})(1 - B^12)Z_t = a_t$$
+
+```{r}
+library(forecast)
+
+previsaoCananeia <- forecast(mod1, 12)
+```
+
+
+
+```{r}
+mes <- rep(c("Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"), 8)
+ano <- c(rep(1963, 12), rep(1964, 12), rep(1965, 12), rep(1966, 12), rep(1967, 12), rep(1968, 12), rep(1969, 12), rep(1970, 12))
+obs2 <- c(6827, 6178, 7084, 8162, 8462, 9644, 10466, 10748, 9963, 8194, 6848, 7027, 7269, 6775, 7819, 8371, 9069, 10248, 11030, 10882, 10333, 9109, 7685, 7602, 8350, 7829, 8829, 9948, 10638, 11253, 11424, 11391, 10665, 9396, 7775, 7933, 8186, 7444, 8484, 9864, 10252, 12282, 11637, 11577, 12417, 9637, 8094, 9280, 8334, 7899, 9994, 10078, 10801, 12950, 12222, 12246, 13281, 10366, 8730, 9614, 8639, 8772, 10894, 10455, 11179, 10588, 10794, 12770, 13812, 10857, 9290, 10925, 9491, 8919, 11607, 8852, 12537, 14759, 13667, 13731, 15110, 12185, 10645, 12161, 10840, 10436, 13589, 13402, 13103, 14933, 14147, 14057, 16234, 12389, 11595, 12772) 
+tabela2 <- rbind(data.frame(mes, ano, obs2))
+```
+
+
+Identificando modelos para a série.
+
+```{r}
+par(mfrow = c(1,1))
+plotMilhas <- ts(tabela2$obs2, start = c(1963,1), frequency = 12)
+plot(plotMilhas, main = "Distâncias percorridas por aviões do Reino Unido", xlab = "Tempo", ylab = "Distâncias percorridas")
+
+adf.test(tabela2$obs2, alternative = "stationary")
+pp.test(tabela2$obs2, alternative = "stationary")
+dickey2 <- ur.df(tabela2$obs2, type = "trend")
+summary(dickey2)
+
+par(mfrow = c(2,1))
+acf(tabela2$obs2, lag.max = 90)
+pacf(tabela2$obs2, lag.max = 90)
+
+periodogram(tabela2$obs2)
+fisher.g.test(tabela2$obs2)
+fisher.g.test(diff(tabela2$obs2, lag = 12))
+```
+
+Como o maior lag do periodograma é o 8, temos que período = $$\frac{96}{8} = 12$$ e portanto o período da série é igual a 12.
+
+
+```{r}
+summary(tabela2$obs2)
+distancia <- ts(tabela2$obs2, frequency = 12, start = 1)
+
+modDis <- auto.arima(distancia)
+coeftest(modDis)
+summary(modDis)
+
+resDis <- residuals(modDis)
+par(mfrow = c(2,1))
+acf(resDis)
+pacf(resDis)
+
+modDis2 <- Arima(tabela2$obs2, order = c(2,0,1), seasonal = list(order = c(0,1,1), period = 12), include.constant = TRUE)
+coeftest(modDis2)
+summary(modDis2)
+resDis2 <- residuals(modDis2)
+par(mfrow = c(2,1))
+acf(resDis2)
+pacf(resDis2)
+
+modDis3 <- Arima(tabela2$obs2, order = c(2,0,2), seasonal = list(order = c(0,1,1), period = 12), include.constant = TRUE)
+coeftest(modDis3)
+summary(modDis3)
+resDis3 <- residuals(modDis3)
+par(mfrow = c(2,1))
+acf(resDis3)
+pacf(resDis3)
+
+Box.test(resDis, lag = 1, type = "Box-Pierce", fitdf = 0)
+Box.test(resDis, lag = 1, type = "Ljung-Box", fitdf = 0)
+Box.test(resDis, lag = 10, type = "Box-Pierce", fitdf = 2)
+Box.test(resDis, lag = 10, type = "Ljung-Box", fitdf = 2)
+Box.test(resDis, lag = 20, type = "Box-Pierce", fitdf = 2)
+Box.test(resDis, lag = 20, type = "Ljung-Box", fitdf = 2)
+Box.test(resDis, lag = 30, type = "Box-Pierce", fitdf = 2)
+Box.test(resDis, lag = 30, type = "Ljung-Box", fitdf = 2)
+
+
+Box.test(resDis3, lag = 1, type = "Box-Pierce", fitdf = 0)
+Box.test(resDis3, lag = 1, type = "Ljung-Box", fitdf = 0)
+Box.test(resDis3, lag = 10, type = "Box-Pierce", fitdf = 5)
+Box.test(resDis3, lag = 10, type = "Ljung-Box", fitdf = 5)
+Box.test(resDis3, lag = 20, type = "Box-Pierce", fitdf = 5)
+Box.test(resDis3, lag = 20, type = "Ljung-Box", fitdf = 5)
+Box.test(resDis3, lag = 30, type = "Box-Pierce", fitdf = 5)
+Box.test(resDis3, lag = 30, type = "Ljung-Box", fitdf = 5)
+
+previsaoDist <- forecast(modDis3, 12)
+```
+
+
+
+Calculando o periodograma das séries a seguir e obtendo sua periodicidade. 
+
+
+Série Temperatura-Ubatuba:
+
+```{r}
+periodogram(temperatura$Ubatuba)
+fisher.g.test(temperatura$Ubatuba)
+fisher.g.test(diff(temperatura$Ubatuba, lag = 12))
+fisher.g.test(diff(temperatura$Ubatuba, lag = 24))
+fisher.g.test(diff(temperatura$Ubatuba, lag = 36))
+fisher.g.test(diff(temperatura$Ubatuba, lag = 48))
+fisher.g.test(diff(temperatura$Ubatuba, lag = 60))
+```
+
+
+```{r}
+lavras <- read_xls("LAVRAS.xls")
+periodogram(lavras$Precipitação)
+fisher.g.test(lavras$Precipitação)
+fisher.g.test(diff(lavras$Precipitação, lag = 12))
+fisher.g.test(diff(lavras$Precipitação, lag = 24))
+fisher.g.test(diff(lavras$Precipitação, lag = 36))
+fisher.g.test(diff(lavras$Precipitação, lag = 48))
+fisher.g.test(diff(lavras$Precipitação, lag = 60))
+```
+
+
+```{r}
+ozonio <- read_xls("OZONIO.xls")
+periodogram(ozonio$Ozonio)
+fisher.g.test(ozonio$Ozonio)
+fisher.g.test(diff(ozonio$Ozonio, lag = 12))
+fisher.g.test(diff(ozonio$Ozonio, lag = 24))
+fisher.g.test(diff(ozonio$Ozonio, lag = 36))
+fisher.g.test(diff(ozonio$Ozonio, lag = 48))
+fisher.g.test(diff(ozonio$Ozonio, lag = 60))
+```
+
