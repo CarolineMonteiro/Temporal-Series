@@ -1,0 +1,170 @@
+---
+title: "Séries Temporais 7"
+author: "Caroline Hernandes Monteiro"
+date: "12/12/2020"
+output: pdf_document
+---
+
+```{r}
+library(readxl)
+
+dados <- read_xlsx("MAE325-banco de dados porva 2.xlsx", sheet = 28)
+plotDados <- ts(dados$dadost, start = 1, frequency = 1)
+plot(plotDados, main = "", xlab = "Tempo", ylab = "")
+```
+
+
+Testando se há raiz unitária presente na série, usando os testes ADF e PP. 
+
+```{r}
+library(urca)
+
+adf.test(dados$dadost, alternative = "stationary")
+pp.test(dados$dadost, alternative = "stationary")
+dickey <- ur.df(dados$dadost, type = "trend")
+summary(dickey)
+```
+
+Fazendo os testes ADF e PP no R usando as funções adf.test() e pp.test() respectivamente, obteve-se que a série é estacionária e não existe raíz unitária. 
+
+Usando a função ur.df() do pacote urca no R, o resultado obtido foi $$\hat{\tau}_\mu$$ = -10,6339, que é menor do que valor tabelado. Dessa forma, rejeitamos a hipótese da existência de uma raíz unitária e a série não precisa ser diferenciada. 
+
+
+Calculando o periodograma para identificar o período da série.
+
+```{r}
+library(TSA)
+library(GeneCycle)
+
+TSA::periodogram(dados$dadost)
+fisher.g.test(dados$dadost)
+par(mfrow = c(2,1))
+fac <- acf(dados$dadost, lag.max = 90)
+facp <- pacf(dados$dadost, lag.max = 90)
+```
+
+Como o periodograma não apresenta um pico isolado, não é possível tirar conclusões, então foi feito o Teste Exato de Fisher usando a função fisher.g.test() do pacote GeneCycle no R.
+
+A partir do p-valor obtido pelo teste (0.00101102), rejeitamos a hipótese nula, ou seja, ficamos com a hipótese alternativa de um componente periódico determinístico adicionado de frequência não especificada. Portanto, a série apresenta período. 
+
+A partir da FAC, é possível observar que os lags múltiplos de 7 possuem um pico estatisticamente diferente de zero e apresentam decaimento. Dessa forma, temos que o período da série aparenta ser igual a 7.
+
+
+Ajustando um modelo SARIMA usando a série $$X_1, \ X_2, \ ..., \ X_{T-10}$$, ou seja, reservar os últimos 10 dados para fazer previsão. Use critério AIC, BIC e erro quadrático médio para comparar os modelos finais ajustados e escolher o melhor modelo. Justifique.
+
+A partir da Figura, nota-se um decaimento exponencial na parte sazonal da FAC e a FACP apresenta um lag estatisticamente diferente de zero na parte sazonal, nos levando a acreditar na possibilidade de um $$SARMA(P,D,Q)_s$$, onde P = 1, D = Q = 0 e s = 4.
+
+Para verificar se uma constante deve, ou não, ser adicionada ao modelo, observa-se que
+
+$$\bar{Z} = -0,1811$$ e $$Var(\bar{Z}) = \frac{c_0(1 + r_1)}{n(1 - r_1)} = \frac{1.99324(1 + (-0.112))}{190(1 - (-0.112))} = 8,38 x 10^{-3}$$
+
+então $$DP(\bar{Z}) = 0,09153$$.
+
+Como a média da série é muito próxima, porém diferente de zero, uma constante deve ser incluída no modelo.
+
+Portanto, o modelo preliminar é um $$SARMA(1,0,0)_7$$ com uma constante
+
+$$Z_t = \Phi Z_{t-7} + \theta_0 + a_t.$$
+
+
+```{r}
+library(forecast)
+library(lmtest)
+
+dados2 <- ts(dados$dadost[1:190])
+serie <- ts(dados2, frequency = 7, start = 1)
+summary(dados2)
+var(dados2)
+acf(dados2, plot = FALSE)
+mod <- auto.arima(serie)
+coeftest(mod)
+summary(mod)
+mod1 <- Arima(dados2, seasonal = list(order = c(1,0,0), period = 7), include.constant = TRUE)
+coeftest(mod1)
+summary(mod1)
+mod2 <- Arima(dados2, seasonal = list(order = c(0,0,1), period = 7), include.constant = TRUE)
+coeftest(mod2)
+summary(mod2)
+mod3 <- Arima(dados2, order = c(1,0,1), seasonal = list(order = c(1,0,0), period = 7), include.constant = FALSE)
+coeftest(mod3)
+summary(mod3)
+
+res <- residuals(mod)
+plot.ts(res)
+par(mfrow = c(2,1))
+acf(res)
+pacf(res)
+
+res1 <- residuals(mod1)
+plot.ts(res1)
+par(mfrow = c(2,1))
+acf(res1)
+pacf(res1)
+
+res2 <- residuals(mod2)
+plot.ts(res2)
+par(mfrow = c(2,1))
+acf(res2)
+pacf(res2)
+
+res3 <- residuals(mod3)
+plot.ts(res3)
+par(mfrow = c(2,1))
+acf(res3)
+pacf(res3)
+
+Box.test(res, lag = 1, type = "Box-Pierce", fitdf = 0)
+Box.test(res, lag = 1, type = "Ljung-Box", fitdf = 0)
+Box.test(res, lag = 15, type = "Box-Pierce", fitdf = 2)
+Box.test(res, lag = 15, type = "Ljung-Box", fitdf = 2)
+
+Box.test(res3, lag = 1, type = "Box-Pierce", fitdf = 0)
+Box.test(res3, lag = 1, type = "Ljung-Box", fitdf = 0)
+Box.test(res3, lag = 15, type = "Box-Pierce", fitdf = 2)
+Box.test(res3, lag = 15, type = "Ljung-Box", fitdf = 2)
+
+Box.test(res1, lag = 1, type = "Box-Pierce", fitdf = 0)
+Box.test(res1, lag = 1, type = "Ljung-Box", fitdf = 0)
+Box.test(res1, lag = 2, type = "Box-Pierce", fitdf = 0)
+Box.test(res1, lag = 2, type = "Ljung-Box", fitdf = 0)
+Box.test(res1, lag = 3, type = "Box-Pierce", fitdf = 0)
+Box.test(res1, lag = 3, type = "Ljung-Box", fitdf = 0)
+Box.test(res1, lag = 15, type = "Box-Pierce", fitdf = 2)
+Box.test(res1, lag = 15, type = "Ljung-Box", fitdf = 2)
+```
+
+
+Fazendo a previsão para h = 10 do modelo escolhido e calculando o erro quadrático médio das previsões.
+
+```{r}
+library(Metrics)
+
+dadosPrev <- dados$dadost[191:200]
+previsao <- forecast(mod1, 10)
+previsao2 <- forecast(mod3, 10)
+previsao3 <- forecast(mod, 10)
+mse1 <- mse(dadosPrev, previsao$mean)
+mse3 <-mse(dadosPrev, previsao2$mean)
+mse <- mse(dadosPrev, previsao3$mean)
+```
+
+
+Atualizando as previsões ajustadas e calculando o erro quadrático médio das previsões atualizadas.
+
+```{r}
+dados3 <- ts(dados$dadost[1:191])
+mod4 <- Arima(dados3, order = c(1,0,1), seasonal = list(order = c(1,0,0), period = 7), include.constant = FALSE)
+coeftest(mod4)
+summary(mod4)
+
+res4 <- residuals(mod4)
+plot.ts(res4)
+par(mfrow = c(2,1))
+acf(res4)
+pacf(res4)
+
+dadosPrevAtual <- dados$dadost[192:200]
+previsaoAtual <- forecast(mod4, 9)
+mse4 <- mse(dadosPrevAtual, previsaoAtual$mean)
+```
+
